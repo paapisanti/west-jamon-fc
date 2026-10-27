@@ -723,8 +723,8 @@
   <script>
     /* ==================== STATE MANAGEMENT ==================== */
     /* ===== CONFIGURA AQUÍ TU PROYECTO DE SUPABASE (Project Settings > API) ===== */
-    const SUPABASE_URL = 'https://hvigmdpmqfurayeembkm.supabase.co/rest/v1/';
-    const SUPABASE_ANON_KEY = 'sb_publishable_a0osqo8BP0uv7-ZNdGZiXA_BJCxbOcP';
+    const SUPABASE_URL = 'https://hvigmdpmqfurayeembkm.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2aWdtZHBtcWZ1cmF5ZWVtYmttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMzYyNDAsImV4cCI6MjEwODYxMjI0MH0.u_kHbN3x31mi_5EVN_hYOFTRp1hcPsM6vVM_dSGbZkc';
     const ACTIVE_KEY = 'WJ_ACTIVE_SEASON';
     const sb = SUPABASE_URL.startsWith('https://') && !SUPABASE_URL.includes('TU-PROYECTO')
       ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
