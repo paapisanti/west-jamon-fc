@@ -1,0 +1,2034 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-100 text-slate-800">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>West Jamón FC - Gestor de Estadísticas</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .card-clean {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 1rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 pb-12">
+
+  <!-- TOP HEADER -->
+  <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex flex-wrap items-center justify-between py-3 gap-2">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-black text-lg shadow-inner">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-xl font-extrabold text-white tracking-tight" id="appTeamName">West Jamón FC</h1>
+            <button onclick="editTeamName()" class="text-slate-400 hover:text-white text-xs" title="Cambiar nombre del equipo"><i class="fa-solid fa-pen"></i></button>
+          </div>
+          <p class="text-xs text-slate-400 font-medium">Gestión del equipo · plantilla, partidos y rendimiento</p>
+        </div>
+      </div>
+
+      <!-- Actions & Season Selector -->
+      <div class="flex items-center space-x-3">
+        
+        <!-- League Config Button -->
+        <button onclick="openLeagueConfigModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold px-3 py-2 rounded-xl border border-slate-700 flex items-center space-x-1.5 transition-all" title="Configurar liga">
+          <i class="fa-solid fa-gear text-amber-400"></i>
+          <span class="hidden sm:inline">Liga</span>
+        </button>
+
+        <!-- Season Switcher Dropdown -->
+        <div class="relative">
+          <button id="seasonDropdownBtn" onclick="toggleSeasonDropdown()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl border border-slate-700 flex items-center space-x-2 transition-all">
+            <i class="fa-regular fa-calendar-days text-emerald-400"></i>
+            <span id="currentSeasonLabel">2025/2026</span>
+            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-1"></i>
+          </button>
+
+          <!-- Dropdown Menu -->
+          <div id="seasonDropdownMenu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 text-slate-800 py-2">
+            <div class="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ver temporada</div>
+            
+            <button onclick="selectSeason('ALL')" class="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-slate-50 flex items-center justify-between text-slate-700">
+              <span class="flex items-center space-x-2"><i class="fa-solid fa-clock-rotate-left text-slate-400"></i><span>Histórico completo</span></span>
+              <i id="check-ALL" class="fa-solid fa-check text-emerald-600 hidden"></i>
+            </button>
+
+            <div id="seasonsMenuList" class="divide-y divide-slate-100 my-1">
+              <!-- Populated by JS -->
+            </div>
+
+            <div class="border-t border-slate-100 pt-1 mt-1 px-2">
+              <button onclick="createNewSeason()" class="w-full text-left px-3 py-2 text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg flex items-center space-x-2">
+                <i class="fa-solid fa-plus text-amber-600"></i>
+                <span>Nueva temporada</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <span id="syncBadge" class="text-xs font-semibold text-slate-400 flex items-center space-x-1.5"></span>
+        <button onclick="signOut()" title="Cerrar sesión" class="text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 sm:px-3 sm:py-2 rounded-xl border border-slate-700 transition-all"><i class="fa-solid fa-right-from-bracket"></i></button>
+        <!-- Export / Import -->
+        <button onclick="exportDataJSON()" title="Exportar Backup JSON" class="text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 sm:px-3 sm:py-2 rounded-xl border border-slate-700 transition-all">
+          <i class="fa-solid fa-download sm:mr-1"></i><span class="hidden sm:inline">Exportar</span>
+        </button>
+        <label title="Importar Backup JSON" class="text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 sm:px-3 sm:py-2 rounded-xl border border-slate-700 transition-all cursor-pointer">
+          <i class="fa-solid fa-upload sm:mr-1"></i><span class="hidden sm:inline">Importar</span>
+          <input type="file" id="importInput" accept=".json" onchange="importDataJSON(event)" class="hidden">
+        </label>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="bg-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-6 overflow-x-auto">
+      <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active py-4 text-sm font-bold border-b-2 border-emerald-600 text-emerald-600 flex items-center space-x-2 whitespace-nowrap">
+        <i class="fa-solid fa-chart-pie"></i>
+        <span>Pestaña Principal</span>
+      </button>
+      <button onclick="switchTab('players')" id="tab-players" class="tab-btn py-4 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center space-x-2 whitespace-nowrap">
+        <i class="fa-solid fa-users"></i>
+        <span>Jugadores</span>
+      </button>
+      <button onclick="switchTab('matches')" id="tab-matches" class="tab-btn py-4 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center space-x-2 whitespace-nowrap">
+        <i class="fa-solid fa-calendar-days"></i>
+        <span>Partidos</span>
+      </button>
+      <button onclick="switchTab('performance')" id="tab-performance" class="tab-btn py-4 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center space-x-2 whitespace-nowrap">
+        <i class="fa-solid fa-chart-column"></i>
+        <span>Rendimiento y Estadísticas</span>
+      </button>
+      <button onclick="switchTab('history')" id="tab-history" class="tab-btn py-4 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center space-x-2 whitespace-nowrap">
+        <i class="fa-solid fa-trophy text-amber-500"></i>
+        <span>Histórico del Club</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+
+    <!-- ==================== TAB 1: PESTAÑA PRINCIPAL ==================== -->
+    <div id="view-dashboard" class="tab-content space-y-6">
+      
+      <!-- Quick Counter Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card-clean p-5 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-400">Jugadores</p>
+            <h3 class="text-3xl font-extrabold text-slate-900 mt-1" id="dashTotalPlayers">0</h3>
+            <p class="text-[11px] text-slate-400 mt-0.5">Plantilla actual</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-users"></i>
+          </div>
+        </div>
+
+        <div class="card-clean p-5 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-400">Goles a favor</p>
+            <h3 class="text-3xl font-extrabold text-emerald-600 mt-1" id="dashGoalsFor">0</h3>
+            <p class="text-[11px] text-slate-400 mt-0.5">Calculados de partidos</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-futbol"></i>
+          </div>
+        </div>
+
+        <div class="card-clean p-5 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-400">Goles en contra</p>
+            <h3 class="text-3xl font-extrabold text-rose-600 mt-1" id="dashGoalsAgainst">0</h3>
+            <p class="text-[11px] text-slate-400 mt-0.5">Recibidos por el equipo</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+        </div>
+
+        <!-- REPLACED CARD: MVP del Último Partido (Replaced Tarjetas) -->
+        <div class="card-clean p-5 flex items-center justify-between">
+          <div class="overflow-hidden">
+            <p class="text-xs font-semibold text-slate-400">MVP Último Partido</p>
+            <h3 class="text-lg font-extrabold text-amber-600 mt-1 truncate" id="dashLastMatchMvpName">-</h3>
+            <p class="text-[11px] font-bold text-slate-500 mt-0.5" id="dashLastMatchMvpScore">Nota: -</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center text-lg flex-shrink-0">
+            <i class="fa-solid fa-star"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 1: Position Chart (2/3 width) vs Match Record Card (1/3 width) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- 1. RESUMEN DEL EQUIPO (1/3 WIDTH) -->
+        <div class="md:col-span-1 card-clean p-5 flex flex-col justify-between">
+          <div>
+            <h3 class="text-sm font-extrabold text-slate-900 mb-4 flex items-center justify-between">
+              <span>🏆 Resumen (<span id="dashSeasonTitle">2026/2027</span>)</span>
+            </h3>
+
+            <div class="grid grid-cols-3 gap-2 mb-4">
+              <div class="bg-emerald-50 rounded-xl p-2.5 text-center border border-emerald-100">
+                <span class="text-xl font-black text-emerald-600 block" id="dashWins">0</span>
+                <span class="text-[10px] font-bold text-emerald-700 uppercase">Victorias</span>
+              </div>
+              <div class="bg-amber-50 rounded-xl p-2.5 text-center border border-amber-100">
+                <span class="text-xl font-black text-amber-600 block" id="dashDraws">0</span>
+                <span class="text-[10px] font-bold text-amber-700 uppercase">Empates</span>
+              </div>
+              <div class="bg-rose-50 rounded-xl p-2.5 text-center border border-rose-100">
+                <span class="text-xl font-black text-rose-600 block" id="dashLosses">0</span>
+                <span class="text-[10px] font-bold text-rose-700 uppercase">Derrotas</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-100 pt-3">
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Último partido jugado</p>
+            <div id="dashLastMatchBox" class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. POSICIÓN EN LIGA (2/3 WIDTH) -->
+        <div class="md:col-span-2 card-clean p-5 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center space-x-2">
+              <h3 class="text-sm font-extrabold text-slate-900">Posición en liga</h3>
+              <button onclick="openLeagueConfigModal()" class="text-slate-400 hover:text-slate-600 text-xs" title="Editar total de equipos en la liga">
+                <i class="fa-solid fa-gear"></i>
+              </button>
+            </div>
+            <span class="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100" id="dashCurrentPosText">-º Posición</span>
+          </div>
+          <p class="text-xs text-slate-400 mb-3">Evolución de puestos en la temporada activa (Escala de 1º a <span id="dashLeagueTotalTeamsLabel">20</span>º equipo)</p>
+          <div class="h-52 w-full">
+            <canvas id="miniPositionChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ROW 2: TOP STATS LEADERBOARDS -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- 1. Máximos Goleadores -->
+        <div class="card-clean p-5 flex flex-col justify-between">
+          <div>
+            <h3 class="text-sm font-extrabold text-slate-900 mb-4 flex items-center space-x-2">
+              <i class="fa-solid fa-futbol text-emerald-600"></i>
+              <span>Máximos goleadores</span>
+            </h3>
+            <div class="space-y-2.5" id="dashTopScorersList">
+              <!-- JS Populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Máximos Asistentes -->
+        <div class="card-clean p-5 flex flex-col justify-between">
+          <div>
+            <h3 class="text-sm font-extrabold text-slate-900 mb-4 flex items-center space-x-2">
+              <i class="fa-solid fa-hands-helping text-blue-600"></i>
+              <span>Máximos asistentes</span>
+            </h3>
+            <div class="space-y-2.5" id="dashTopAssistersList">
+              <!-- JS Populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Top Participación en Goles (G+A) -->
+        <div class="card-clean p-5 flex flex-col justify-between">
+          <div>
+            <h3 class="text-sm font-extrabold text-slate-900 mb-4 flex items-center space-x-2">
+              <i class="fa-solid fa-star text-amber-500"></i>
+              <span>Top Participación (G+A)</span>
+            </h3>
+            <div class="space-y-2.5" id="dashTopGoalContribList">
+              <!-- JS Populated -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ==================== TAB 2: JUGADORES ==================== -->
+    <div id="view-players" class="tab-content hidden space-y-6">
+      <div class="card-clean p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-extrabold text-slate-900">Plantilla del Equipo (<span class="seasonLabelInline">2026/2027</span>)</h2>
+          <p class="text-xs text-slate-500">Puedes dar de baja o añadir jugadores para esta temporada sin perder sus datos históricos en el club.</p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button onclick="loadDemoData()" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl transition-all border border-slate-200">
+            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Cargar Datos Demo
+          </button>
+          <button onclick="openPlayerModal()" class="text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl transition-all shadow-sm flex items-center space-x-1.5">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Añadir / Reactivar Jugador</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Players Table -->
+      <div class="card-clean overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3.5 px-4">Jugador</th>
+                <th class="py-3.5 px-3 text-center" title="Partidos Jugados (Convocados)">PJ</th>
+                <th class="py-3.5 px-3 text-center" title="Partidos como Titular">PT</th>
+                <th class="py-3.5 px-3 text-center">Goles</th>
+                <th class="py-3.5 px-3 text-center">Asist.</th>
+                <th class="py-3.5 px-3 text-center">TA</th>
+                <th class="py-3.5 px-3 text-center">TR</th>
+                <th class="py-3.5 px-3 text-center" title="Nota Media de partidos jugados con evaluación">Nota Media</th>
+                <th class="py-3.5 px-3 text-center">Nº de 10s</th>
+                <th class="py-3.5 px-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="playersTableBody" class="divide-y divide-slate-100 font-medium">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 3: PARTIDOS ==================== -->
+    <div id="view-matches" class="tab-content hidden space-y-6">
+      <div class="card-clean p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-extrabold text-slate-900">Historial de Partidos (<span class="seasonLabelInline">2026/2027</span>)</h2>
+          <p class="text-xs text-slate-500">Registra y edita las actas individuales. Sólo los convocados acumularán estadísticas.</p>
+        </div>
+        <button onclick="openMatchModal()" class="text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl transition-all shadow-sm flex items-center space-x-1.5">
+          <i class="fa-solid fa-plus"></i>
+          <span>Registrar Nuevo Partido</span>
+        </button>
+      </div>
+
+      <!-- Matches List -->
+      <div class="space-y-4" id="matchesListContainer">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- ==================== TAB 4: RENDIMIENTO Y ESTADÍSTICAS ==================== -->
+    <div id="view-performance" class="tab-content hidden space-y-6">
+      
+      <!-- Top Leaders Mini Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="card-clean p-4">
+          <h4 class="text-xs font-bold text-slate-900 mb-3 flex items-center space-x-1.5">
+            <i class="fa-solid fa-futbol text-emerald-600"></i>
+            <span>Pichichi</span>
+          </h4>
+          <div class="space-y-2" id="perfPichichiList"></div>
+        </div>
+
+        <div class="card-clean p-4">
+          <h4 class="text-xs font-bold text-slate-900 mb-3 flex items-center space-x-1.5">
+            <i class="fa-solid fa-hands-helping text-blue-600"></i>
+            <span>Mejor asistente</span>
+          </h4>
+          <div class="space-y-2" id="perfAssisterList"></div>
+        </div>
+
+        <div class="card-clean p-4">
+          <h4 class="text-xs font-bold text-slate-900 mb-3 flex items-center space-x-1.5">
+            <i class="fa-regular fa-star text-amber-500"></i>
+            <span>Mejor valoración</span>
+          </h4>
+          <div class="space-y-2" id="perfRatingList"></div>
+        </div>
+
+        <div class="card-clean p-4">
+          <h4 class="text-xs font-bold text-slate-900 mb-3 flex items-center space-x-1.5">
+            <i class="fa-solid fa-trophy text-amber-500"></i>
+            <span>Más 10s de nota</span>
+          </h4>
+          <div class="space-y-2" id="perfTensList"></div>
+        </div>
+      </div>
+
+      <!-- Charts Row 1 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card-clean p-5">
+          <h3 class="text-sm font-extrabold text-slate-900 mb-1 flex items-center space-x-2">
+            <i class="fa-solid fa-chart-column text-emerald-600"></i>
+            <span>Goles por jugador</span>
+          </h3>
+          <p class="text-xs text-slate-400 mb-4">Total de goles anotados por cada integrante en el filtro activo.</p>
+          <div class="h-64">
+            <canvas id="chartGoalsPerPlayer"></canvas>
+          </div>
+        </div>
+
+        <div class="card-clean p-5">
+          <h3 class="text-sm font-extrabold text-slate-900 mb-1 flex items-center space-x-2">
+            <i class="fa-solid fa-pie-chart text-emerald-600"></i>
+            <span>Reparto de goles del equipo</span>
+          </h3>
+          <p class="text-xs text-slate-400 mb-4">Porcentaje de goles aportado por cada jugador.</p>
+          <div class="h-64 flex justify-center">
+            <canvas id="chartGoalShare"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row 2 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card-clean p-5">
+          <h3 class="text-sm font-extrabold text-slate-900 mb-1 flex items-center space-x-2">
+            <i class="fa-solid fa-chart-line text-emerald-600"></i>
+            <span>Evolución de goles del equipo</span>
+          </h3>
+          <p class="text-xs text-slate-400 mb-4">Goles a Favor (<span class="text-emerald-600 font-bold">Verde</span>) vs. Goles en Contra (<span class="text-rose-600 font-bold">Rojo</span>).</p>
+          <div class="h-64">
+            <canvas id="chartGoalsEvolution"></canvas>
+          </div>
+        </div>
+
+        <div class="card-clean p-5">
+          <h3 class="text-sm font-extrabold text-slate-900 mb-1 flex items-center space-x-2">
+            <i class="fa-solid fa-ranking-star text-amber-500"></i>
+            <span>Evolución de Posición en Liga</span>
+          </h3>
+          <p class="text-xs text-slate-400 mb-4">Puesto alcanzado jornada tras jornada (Liga de <span id="perfLeagueTotalTeamsLabel">20</span> equipos).</p>
+          <div class="h-64">
+            <canvas id="chartLeaguePosition"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==================== TAB 5: HISTÓRICO DEL CLUB ==================== -->
+    <div id="view-history" class="tab-content hidden space-y-6">
+      
+      <!-- Global Summary Header -->
+      <div class="card-clean p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white border-none shadow-lg">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-400">Palmarés y Leyenda</span>
+            <h2 class="text-2xl font-black mt-0.5">Histórico Completo del Club</h2>
+            <p class="text-xs text-slate-300 mt-1">Acumulado global de todas las temporadas registradas</p>
+          </div>
+          
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+              <span class="text-xl font-black text-amber-400 block" id="histTotalSeasons">0</span>
+              <span class="text-[10px] font-bold uppercase text-slate-400">Temporadas</span>
+            </div>
+            <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+              <span class="text-xl font-black text-emerald-400 block" id="histTotalMatches">0</span>
+              <span class="text-[10px] font-bold uppercase text-slate-400">Partidos</span>
+            </div>
+            <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+              <span class="text-xl font-black text-emerald-400 block" id="histTotalGF">0</span>
+              <span class="text-[10px] font-bold uppercase text-slate-400">Goles Favor</span>
+            </div>
+            <div class="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+              <span class="text-xl font-black text-emerald-400 block" id="histWinRate">0%</span>
+              <span class="text-[10px] font-bold uppercase text-slate-400">% Victorias</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ranking de Goleadores Histórico -->
+      <div class="card-clean p-5">
+        <h3 class="text-sm font-extrabold text-slate-900 mb-4 flex items-center space-x-2">
+          <i class="fa-solid fa-trophy text-amber-500"></i>
+          <span>Ranking Histórico de Goleadores</span>
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-3 text-center">Pos</th>
+                <th class="py-3 px-4">Jugador</th>
+                <th class="py-3 px-3 text-center">Partidos Jugados</th>
+                <th class="py-3 px-3 text-center">Goles Totales</th>
+                <th class="py-3 px-3 text-center">Asistencias</th>
+                <th class="py-3 px-3 text-center">Promedio Gol/Partido</th>
+              </tr>
+            </thead>
+            <tbody id="histScorersTableBody" class="divide-y divide-slate-100 font-medium">
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Resumen por Temporadas -->
+      <div class="card-clean p-5">
+        <h3 class="text-sm font-extrabold text-slate-900 mb-4 flex items-center space-x-2">
+          <i class="fa-solid fa-calendar-check text-emerald-600"></i>
+          <span>Resumen por Temporadas</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="histSeasonsCardsGrid">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- MODAL: LEAGUE CONFIG -->
+  <div id="modalLeagueConfig" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-2xl relative">
+      <button onclick="closeModal('modalLeagueConfig')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+      <h3 class="text-base font-extrabold text-slate-900 flex items-center space-x-2">
+        <i class="fa-solid fa-trophy text-amber-500"></i>
+        <span>Configuración de Liga</span>
+      </h3>
+
+      <form onsubmit="saveLeagueConfig(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Número de equipos en la liga</label>
+          <input type="number" id="leagueTotalTeamsInput" min="2" max="40" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-bold">
+          <p class="text-[11px] text-slate-400 mt-1">Se utiliza para ajustar la escala vertical (1º al Xº puesto) en los gráficos de posición.</p>
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeModal('modalLeagueConfig')" class="px-4 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl">Cancelar</button>
+          <button type="submit" class="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl">Guardar Ajustes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD/EDIT PLAYER -->
+  <div id="modalPlayer" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl relative">
+      <button onclick="closeModal('modalPlayer')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+      <h3 class="text-base font-extrabold text-slate-900" id="modalPlayerTitle">Añadir Jugador</h3>
+
+      <!-- REACTIVATE EXISTING PLAYER SECTION -->
+      <div id="reactivatePlayerSection" class="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+        <label class="block text-xs font-bold text-amber-900">
+          <i class="fa-solid fa-user-plus text-amber-600 mr-1"></i>
+          Reactivar jugador existente del histórico:
+        </label>
+        <div class="flex space-x-2">
+          <select id="selectExistingPlayerToReactivate" class="w-full border border-amber-300 rounded-xl px-2.5 py-1.5 text-xs bg-white text-slate-800 font-medium focus:outline-none focus:border-amber-500">
+            <option value="">-- Seleccionar de temporadas anteriores --</option>
+          </select>
+          <button type="button" onclick="reactivateSelectedPlayer()" class="px-3 py-1.5 text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white rounded-xl whitespace-nowrap">
+            Añadir a esta temporada
+          </button>
+        </div>
+        <p class="text-[10px] text-amber-700 font-medium">Usa esto para no duplicar al jugador en el Histórico del Club.</p>
+      </div>
+
+      <div class="relative flex py-1 items-center">
+        <div class="flex-grow border-t border-slate-200"></div>
+        <span class="flex-shrink mx-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">o crear jugador nuevo</span>
+        <div class="flex-grow border-t border-slate-200"></div>
+      </div>
+
+      <form id="formPlayer" onsubmit="savePlayer(event)" class="space-y-4">
+        <input type="hidden" id="playerId">
+        
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre completo / Nombre deportivo</label>
+          <input type="text" id="playerName" placeholder="Ej: Marcos Llorente" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Temporadas en las que forma parte de la plantilla</label>
+          <div id="playerSeasonsCheckboxes" class="space-y-1.5 max-h-32 overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+            <!-- JS Populated Checkboxes -->
+          </div>
+          <p class="text-[10px] text-slate-400 mt-1">Desmarcar una temporada quita al jugador de esa plantilla sin borrar sus datos ni su historial.</p>
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeModal('modalPlayer')" class="px-4 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl">Cancelar</button>
+          <button type="submit" class="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl">Guardar Jugador</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: MATCH REGISTER & PLAYER STATS -->
+  <div id="modalMatch" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-4xl rounded-2xl p-6 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <button onclick="closeModal('modalMatch')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+      <h3 class="text-base font-extrabold text-slate-900" id="modalMatchTitle">Registrar Partido</h3>
+
+      <form id="formMatch" onsubmit="saveMatch(event)" class="space-y-4">
+        <input type="hidden" id="matchId">
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Día / Fecha</label>
+            <input type="date" id="matchDate" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Equipo contrario</label>
+            <input type="text" id="matchOpponent" required placeholder="Ej: Zenit de Hasbulla" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nº Jornada</label>
+            <input type="number" id="matchDayNum" min="1" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-emerald-700 mb-1">Goles a favor</label>
+            <input type="number" id="matchGF" min="0" value="0" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-rose-700 mb-1">Goles en contra</label>
+            <input type="number" id="matchGA" min="0" value="0" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Posición en liga tras partido</label>
+            <input type="number" id="matchPos" min="1" placeholder="Ej: 3" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <!-- Individual Player Match Performance Input -->
+        <div class="border-t border-slate-200 pt-4">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-bold text-slate-900">Actuación individual de jugadores</h4>
+            <span class="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-semibold">⚠️ Si no se marca "Conv.", sus estadísticas quedan deshabilitadas</span>
+          </div>
+
+          <div class="border border-slate-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 font-bold text-[10px] uppercase sticky top-0 border-b border-slate-200">
+                <tr>
+                  <th class="py-2 px-3">Jugador</th>
+                  <th class="py-2 px-1 text-center">Conv.</th>
+                  <th class="py-2 px-1 text-center">Tit.</th>
+                  <th class="py-2 px-1 text-center">Goles</th>
+                  <th class="py-2 px-1 text-center">Asist.</th>
+                  <th class="py-2 px-1 text-center">TA</th>
+                  <th class="py-2 px-1 text-center">TR</th>
+                  <th class="py-2 px-2 text-center">Nota (1-10)</th>
+                </tr>
+              </thead>
+              <tbody id="matchPlayersInputTable" class="divide-y divide-slate-100">
+                <!-- JS Populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeModal('modalMatch')" class="px-4 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl">Cancelar</button>
+          <button type="submit" class="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl">Guardar Partido</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CUSTOM NOTIFICATION & CONFIRMATION MODALS -->
+  <div id="customModalConfirm" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-2xl relative text-center">
+      <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-xl">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <h3 class="text-sm font-extrabold text-slate-900" id="confirmModalTitle">Confirmar Acción</h3>
+      <p class="text-xs text-slate-500" id="confirmModalText">¿Estás seguro de que deseas eliminar este elemento?</p>
+      <div class="pt-2 flex justify-center space-x-2">
+        <button id="confirmModalBtnCancel" class="px-4 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl">Cancelar</button>
+        <button id="confirmModalBtnOk" class="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white rounded-xl">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="customModalAlert" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-2xl relative text-center">
+      <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl">
+        <i class="fa-solid fa-circle-check"></i>
+      </div>
+      <h3 class="text-sm font-extrabold text-slate-900" id="alertModalTitle">Mensaje</h3>
+      <p class="text-xs text-slate-500" id="alertModalText">Operación completada con éxito.</p>
+      <div class="pt-2 flex justify-center">
+        <button onclick="closeModal('customModalAlert')" class="px-6 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: LOGIN -->
+  <div id="modalLogin" class="fixed inset-0 bg-slate-900 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-2xl">
+      <div class="text-center">
+        <div class="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto text-xl"><i class="fa-solid fa-shield-halved"></i></div>
+        <h3 class="text-base font-extrabold text-slate-900 mt-3">Acceso al equipo</h3>
+        <p class="text-xs text-slate-500">Inicia sesión para ver y editar las estadísticas.</p>
+      </div>
+      <form onsubmit="signIn(event)" class="space-y-3">
+        <input type="email" id="loginEmail" placeholder="Email" required autocomplete="username" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500">
+        <input type="password" id="loginPass" placeholder="Contraseña" required autocomplete="current-password" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500">
+        <p id="loginError" class="text-xs font-semibold text-rose-600"></p>
+        <button type="submit" class="w-full px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    /* ==================== STATE MANAGEMENT ==================== */
+    /* ===== CONFIGURA AQUÍ TU PROYECTO DE SUPABASE (Project Settings > API) ===== */
+    const SUPABASE_URL = 'https://hvigmdpmqfurayeembkm.supabase.co/rest/v1/';
+    const SUPABASE_ANON_KEY = 'sb_publishable_a0osqo8BP0uv7-ZNdGZiXA_BJCxbOcP';
+    const ACTIVE_KEY = 'WJ_ACTIVE_SEASON';
+    const sb = SUPABASE_URL.startsWith('https://') && !SUPABASE_URL.includes('TU-PROYECTO')
+      ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+    let appState = {
+      teamName: 'West Jamón FC',
+      totalLeagueTeams: 20,
+      activeSeason: '2025/2026',
+      seasons: ['2025/2026', '2026/2027'],
+      players: [],
+      matches: []
+    };
+
+    let charts = {};
+
+    /* ==================== MODALS HELPERS ==================== */
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    }
+
+    function showAlert(title, message) {
+      document.getElementById('alertModalTitle').textContent = title;
+      document.getElementById('alertModalText').textContent = message;
+      openModal('customModalAlert');
+    }
+
+    function showConfirm(title, message, onConfirm) {
+      document.getElementById('confirmModalTitle').textContent = title;
+      document.getElementById('confirmModalText').textContent = message;
+      
+      const btnOk = document.getElementById('confirmModalBtnOk');
+      const btnCancel = document.getElementById('confirmModalBtnCancel');
+
+      const handleOk = () => {
+        closeModal('customModalConfirm');
+        btnOk.onclick = null;
+        onConfirm();
+      };
+
+      const handleCancel = () => {
+        closeModal('customModalConfirm');
+        btnCancel.onclick = null;
+      };
+
+      btnOk.onclick = handleOk;
+      btnCancel.onclick = handleCancel;
+
+      openModal('customModalConfirm');
+    }
+
+    /* ==================== INITIALIZATION ==================== */
+    window.onload = function() {
+      window.addEventListener('click', function(e) {
+        const drop = document.getElementById('seasonDropdownMenu');
+        const btn = document.getElementById('seasonDropdownBtn');
+        if (drop && !drop.contains(e.target) && !btn.contains(e.target)) drop.classList.add('hidden');
+      });
+      // Al volver a la pestaña/app, traer los cambios hechos desde otro dispositivo
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden || !sb || document.querySelector('.fixed.z-50:not(.hidden)')) return;
+        sb.auth.getSession().then(({ data }) => { if (data.session) saving.then(loadFromCloud).catch(console.error); });
+      });
+      initAuth();
+    };
+
+    /* ==================== SUPABASE: AUTH + SYNC ==================== */
+    let saving = Promise.resolve();
+    const snap = { settings: '', players: new Map(), matches: new Map() };
+    const chk = r => { if (r.error) throw r.error; return r; };
+    const rowS = () => ({ id: 1, team_name: appState.teamName, total_league_teams: appState.totalLeagueTeams, seasons: appState.seasons });
+    const rowP = p => ({ id: p.id, name: p.name || p.nombre, seasons: p.seasons || [] });
+    const rowM = m => {
+      const date = m.date || m.fecha;
+      return { id: m.id, date, opponent: m.opponent || m.rival, jornada: m.jornada || 1,
+        gf: parseInt(m.gf ?? m.golesFavor) || 0, ga: parseInt(m.ga ?? m.golesContra) || 0,
+        posicion: m.posicion ?? m.posicionLiga ?? null, season: m.season || getSeasonForDate(date),
+        player_stats: m.playerStats || {} };
+    };
+
+    function setSync(state) {
+      const el = document.getElementById('syncBadge');
+      if (!el) return;
+      const v = {
+        ok: ['fa-cloud text-emerald-400', 'Sincronizado'],
+        saving: ['fa-cloud-arrow-up text-amber-400 animate-pulse', 'Guardando…'],
+        loading: ['fa-cloud-arrow-down text-amber-400 animate-pulse', 'Cargando…'],
+        error: ['fa-triangle-exclamation text-rose-400', 'Sin conexión']
+      }[state];
+      el.innerHTML = `<i class="fa-solid ${v[0]}"></i><span class="hidden md:inline">${v[1]}</span>`;
+    }
+
+    async function initAuth() {
+      if (!sb) {
+        openModal('modalLogin');
+        document.getElementById('loginError').textContent = 'Falta configurar SUPABASE_URL y SUPABASE_ANON_KEY en el archivo.';
+        return;
+      }
+      const { data } = await sb.auth.getSession();
+      if (data.session) startApp(); else openModal('modalLogin');
+    }
+
+    async function startApp() {
+      closeModal('modalLogin');
+      try { await loadFromCloud(); }
+      catch (e) { console.error(e); setSync('error'); showAlert('Error de conexión', 'No se pudieron cargar los datos: ' + (e.message || e)); }
+    }
+
+    async function signIn(e) {
+      e.preventDefault();
+      if (!sb) return;
+      const { error } = await sb.auth.signInWithPassword({
+        email: document.getElementById('loginEmail').value.trim(),
+        password: document.getElementById('loginPass').value
+      });
+      if (error) { document.getElementById('loginError').textContent = 'Email o contraseña incorrectos.'; return; }
+      document.getElementById('loginError').textContent = '';
+      startApp();
+    }
+
+    async function signOut() { if (sb) await sb.auth.signOut(); location.reload(); }
+
+    async function loadFromCloud() {
+      setSync('loading');
+      const [s, p, m] = await Promise.all([
+        sb.from('club_settings').select('*').eq('id', 1).maybeSingle(),
+        sb.from('players').select('*').order('id'),
+        sb.from('matches').select('*').order('date')
+      ]);
+      [s, p, m].forEach(chk);
+      const seasons = s.data?.seasons?.length ? s.data.seasons : ['2025/2026', '2026/2027'];
+      appState = {
+        teamName: s.data?.team_name || 'West Jamón FC',
+        totalLeagueTeams: s.data?.total_league_teams || 20,
+        seasons,
+        activeSeason: localStorage.getItem(ACTIVE_KEY) || seasons[0],
+        players: p.data.map(r => ({ id: r.id, name: r.name, nombre: r.name, seasons: r.seasons || [] })),
+        matches: m.data.map(r => ({ id: r.id, date: r.date, opponent: r.opponent, jornada: r.jornada, gf: r.gf, ga: r.ga,
+          posicion: r.posicion, season: r.season, playerStats: r.player_stats || {} }))
+      };
+      if (appState.activeSeason !== 'ALL' && !seasons.includes(appState.activeSeason)) appState.activeSeason = seasons[0];
+      snap.settings = s.data ? JSON.stringify(rowS()) : '';
+      snap.players = new Map(appState.players.map(x => [String(x.id), JSON.stringify(rowP(x))]));
+      snap.matches = new Map(appState.matches.map(x => [String(x.id), JSON.stringify(rowM(x))]));
+      refreshApp();
+      setSync('ok');
+    }
+
+    // Se llama tras cada cambio: sube solo lo que ha cambiado (altas, ediciones y borrados)
+    function saveData() {
+      localStorage.setItem(ACTIVE_KEY, appState.activeSeason);
+      saving = saving.then(syncToCloud).catch(e => { console.error(e); setSync('error'); showAlert('Error al guardar', 'Los cambios no se han guardado en la nube: ' + (e.message || e)); });
+    }
+
+    async function syncToCloud() {
+      if (!sb) return;
+      setSync('saving');
+      const ops = [];
+      const s = rowS(), sk = JSON.stringify(s);
+      if (sk !== snap.settings) ops.push(sb.from('club_settings').upsert(s).then(r => { chk(r); snap.settings = sk; }));
+      for (const [key, list, fn] of [['players', appState.players, rowP], ['matches', appState.matches, rowM]]) {
+        const cur = new Map(list.map(x => [String(x.id), fn(x)]));
+        const up = [...cur].filter(([id, r]) => snap[key].get(id) !== JSON.stringify(r)).map(([, r]) => r);
+        const del = [...snap[key].keys()].filter(id => !cur.has(id));
+        if (up.length) ops.push(sb.from(key).upsert(up).then(r => { chk(r); up.forEach(x => snap[key].set(String(x.id), JSON.stringify(x))); }));
+        if (del.length) ops.push(sb.from(key).delete().in('id', del).then(r => { chk(r); del.forEach(id => snap[key].delete(id)); }));
+      }
+      await Promise.all(ops);
+      setSync('ok');
+    }
+
+    function getSeasonPlayers(season = appState.activeSeason) {
+      if (season === 'ALL') return appState.players;
+      return appState.players.filter(p => {
+        if (p.seasons && p.seasons.includes(season)) return true;
+        // Also include if player has match activity in this season
+        const stats = getPlayerStats(p.id, season);
+        return stats.pj > 0;
+      });
+    }
+
+    /* ==================== PLAYERS TAB ==================== */
+    function renderPlayersTable() {
+      const tbody = document.getElementById('playersTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const currentSeasonPlayers = getSeasonPlayers(appState.activeSeason);
+
+      if (currentSeasonPlayers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-slate-400 italic">No hay jugadores dados de alta en esta temporada. Usa el botón superior para añadir o reactivar jugadores.</td></tr>`;
+        return;
+      }
+
+      currentSeasonPlayers.forEach(p => {
+        const name = p.name || p.nombre;
+        const stats = getPlayerStats(p.id, appState.activeSeason);
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition-all';
+        tr.innerHTML = `
+          <td class="py-3.5 px-4 font-extrabold text-slate-800">${name}</td>
+          <td class="py-3.5 px-3 text-center font-bold text-slate-700">${stats.pj}</td>
+          <td class="py-3.5 px-3 text-center text-slate-500">${stats.pt}</td>
+          <td class="py-3.5 px-3 text-center font-extrabold text-emerald-600">${stats.goles}</td>
+          <td class="py-3.5 px-3 text-center font-extrabold text-blue-600">${stats.asistencias}</td>
+          <td class="py-3.5 px-3 text-center font-bold text-amber-600">${stats.ta}</td>
+          <td class="py-3.5 px-3 text-center font-bold text-rose-600">${stats.tr}</td>
+          <td class="py-3.5 px-3 text-center font-black ${stats.avgRating >= 8 ? 'text-emerald-600' : 'text-slate-700'}">${stats.avgRating}</td>
+          <td class="py-3.5 px-3 text-center font-bold text-amber-500">${stats.tensCount}</td>
+          <td class="py-3.5 px-4 text-right space-x-1">
+            <button onclick="editPlayer(${p.id})" class="p-1.5 text-slate-400 hover:text-slate-700" title="Editar"><i class="fa-solid fa-pen"></i></button>
+            <button onclick="removePlayerFromSeason(${p.id})" class="p-1.5 text-slate-400 hover:text-amber-600" title="Quitar de esta temporada"><i class="fa-solid fa-user-minus"></i></button>
+            <button onclick="deletePlayerCompletely(${p.id})" class="p-1.5 text-slate-400 hover:text-rose-600" title="Eliminar definitivamente"><i class="fa-solid fa-trash"></i></button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openPlayerModal(playerId = null) {
+      document.getElementById('playerId').value = playerId || '';
+      document.getElementById('playerName').value = '';
+
+      const curSeason = appState.activeSeason === 'ALL' ? appState.seasons[0] : appState.activeSeason;
+      let activePlayerSeasons = [curSeason];
+
+      const reactivateSection = document.getElementById('reactivatePlayerSection');
+      const reactivateSelect = document.getElementById('selectExistingPlayerToReactivate');
+
+      if (playerId) {
+        const p = appState.players.find(x => String(x.id) === String(playerId));
+        if (p) {
+          document.getElementById('playerName').value = p.name || p.nombre;
+          document.getElementById('modalPlayerTitle').textContent = 'Editar Jugador';
+          if (p.seasons) activePlayerSeasons = p.seasons;
+        }
+        if (reactivateSection) reactivateSection.classList.add('hidden');
+      } else {
+        document.getElementById('modalPlayerTitle').textContent = 'Añadir / Reactivar Jugador';
+        
+        // Populate existing historical players NOT currently in the active season
+        if (reactivateSection && reactivateSelect) {
+          const inactivePlayers = appState.players.filter(p => !p.seasons || !p.seasons.includes(curSeason));
+          
+          if (inactivePlayers.length > 0) {
+            reactivateSection.classList.remove('hidden');
+            reactivateSelect.innerHTML = `<option value="">-- Seleccionar de temporadas anteriores --</option>` +
+              inactivePlayers.map(p => `<option value="${p.id}">${p.name || p.nombre}</option>`).join('');
+          } else {
+            reactivateSection.classList.add('hidden');
+          }
+        }
+      }
+
+      // Render season checkboxes
+      const seasonsContainer = document.getElementById('playerSeasonsCheckboxes');
+      seasonsContainer.innerHTML = appState.seasons.map(s => `
+        <label class="flex items-center space-x-2 text-slate-700 font-semibold cursor-pointer">
+          <input type="checkbox" value="${s}" ${activePlayerSeasons.includes(s) ? 'checked' : ''} class="player-season-cb rounded text-emerald-600 focus:ring-0">
+          <span>Temporada ${s}</span>
+        </label>
+      `).join('');
+
+      openModal('modalPlayer');
+    }
+
+    function reactivateSelectedPlayer() {
+      const pId = document.getElementById('selectExistingPlayerToReactivate').value;
+      if (!pId) return;
+
+      const player = appState.players.find(x => String(x.id) === String(pId));
+      if (!player) return;
+
+      const curSeason = appState.activeSeason === 'ALL' ? appState.seasons[0] : appState.activeSeason;
+      if (!player.seasons) player.seasons = [];
+      
+      if (!player.seasons.includes(curSeason)) {
+        player.seasons.push(curSeason);
+      }
+
+      saveData();
+      closeModal('modalPlayer');
+      refreshApp();
+      showAlert("Jugador Reactivado", `${player.name || player.nombre} se ha añadido a la plantilla de la temporada ${curSeason} sin duplicarse en el histórico.`);
+    }
+
+    function editPlayer(id) {
+      openPlayerModal(id);
+    }
+
+    function savePlayer(e) {
+      e.preventDefault();
+      const id = document.getElementById('playerId').value;
+      const name = document.getElementById('playerName').value.trim();
+
+      if (!name) return;
+
+      const checkedSeasons = Array.from(document.querySelectorAll('.player-season-cb:checked')).map(cb => cb.value);
+
+      if (id) {
+        const p = appState.players.find(x => String(x.id) === String(id));
+        if (p) {
+          p.name = name;
+          p.nombre = name;
+          p.seasons = checkedSeasons;
+        }
+      } else {
+        // Check if player with same name already exists to avoid duplication
+        const existingByName = appState.players.find(x => (x.name || x.nombre || '').toLowerCase() === name.toLowerCase());
+        
+        if (existingByName) {
+          if (!existingByName.seasons) existingByName.seasons = [];
+          checkedSeasons.forEach(s => {
+            if (!existingByName.seasons.includes(s)) existingByName.seasons.push(s);
+          });
+        } else {
+          const curSeason = appState.activeSeason === 'ALL' ? appState.seasons[0] : appState.activeSeason;
+          const newP = {
+            id: Date.now(),
+            name: name,
+            nombre: name,
+            seasons: checkedSeasons.length > 0 ? checkedSeasons : [curSeason]
+          };
+          appState.players.push(newP);
+        }
+      }
+
+      saveData();
+      closeModal('modalPlayer');
+      refreshApp();
+    }
+
+    function removePlayerFromSeason(id) {
+      const p = appState.players.find(x => x.id == id);
+      if (!p) return;
+      const curSeason = appState.activeSeason === 'ALL' ? appState.seasons[0] : appState.activeSeason;
+
+      showConfirm(
+        "Baja de Plantilla",
+        `¿Deseas quitar a ${p.name || p.nombre} de la temporada ${curSeason}? Sus estadísticas pasadas se mantendrán intactas en el Histórico del Club.`,
+        () => {
+          if (!p.seasons) p.seasons = [...appState.seasons];
+          p.seasons = p.seasons.filter(s => s !== curSeason);
+          saveData();
+          refreshApp();
+        }
+      );
+    }
+
+    function deletePlayerCompletely(id) {
+      showConfirm(
+        "Eliminar Definitivamente",
+        "¿Estás seguro de eliminar por completo a este jugador de la base de datos?",
+        () => {
+          appState.players = appState.players.filter(p => String(p.id) !== String(id));
+          saveData();
+          refreshApp();
+        }
+      );
+    }
+
+    /* ==================== MATCHES TAB ==================== */
+    function renderMatchesList() {
+      const container = document.getElementById('matchesListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const activeMatches = getActiveMatches();
+
+      if (activeMatches.length === 0) {
+        container.innerHTML = `
+          <div class="card-clean p-12 text-center text-slate-400 space-y-3">
+            <i class="fa-solid fa-calendar-xmark text-4xl"></i>
+            <p class="text-xs font-semibold">No hay partidos registrados en la temporada ${appState.activeSeason}.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const sorted = [...activeMatches].sort((a,b) => new Date(b.date || b.fecha) - new Date(a.date || a.fecha));
+
+      sorted.forEach(m => {
+        const matchGF = m.gf !== undefined ? m.gf : m.golesFavor;
+        const matchGA = m.ga !== undefined ? m.ga : m.golesContra;
+        const matchDate = m.date || m.fecha;
+        const opp = m.opponent || m.rival;
+        const pos = m.posicion || m.posicionLiga || '-';
+
+        const div = document.createElement('div');
+        div.className = 'card-clean p-5 hover:border-slate-300 transition-all space-y-3';
+        div.innerHTML = `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div class="flex items-center space-x-3">
+              <span class="text-xs font-black bg-slate-900 text-white px-3 py-1 rounded-lg">Jornada ${m.jornada || '-'}</span>
+              <span class="text-xs font-bold text-slate-400"><i class="fa-regular fa-calendar mr-1"></i>${matchDate}</span>
+              <span class="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">${pos}º Puesto</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <button onclick="editMatch(${m.id})" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl border border-slate-200">
+                <i class="fa-solid fa-pen mr-1"></i>Editar Partido
+              </button>
+              <button onclick="deleteMatch(${m.id})" class="text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 rounded-xl border border-rose-200">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between py-2 px-4 bg-slate-50 rounded-xl border border-slate-100">
+            <div class="flex items-center space-x-3">
+              <span class="text-sm font-black text-slate-900">${appState.teamName}</span>
+            </div>
+            <div class="text-xl font-black px-4 py-1 rounded-xl ${matchGF > matchGA ? 'bg-emerald-100 text-emerald-800' : matchGF === matchGA ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'}">
+              ${matchGF} - ${matchGA}
+            </div>
+            <div class="flex items-center space-x-3">
+              <span class="text-sm font-black text-slate-900">${opp}</span>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function editMatch(id) {
+      openMatchModal(id);
+    }
+
+    function deleteMatch(id) {
+      showConfirm(
+        "Eliminar Partido",
+        "¿Estás seguro de que deseas borrar el registro de este partido?",
+        () => {
+          appState.matches = appState.matches.filter(m => String(m.id) !== String(id));
+          saveData();
+          refreshApp();
+        }
+      );
+    }
+
+    function openMatchModal(matchId = null) {
+      document.getElementById('matchId').value = matchId || '';
+      document.getElementById('matchDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('matchOpponent').value = '';
+      document.getElementById('matchDayNum').value = (getActiveMatches().length + 1);
+      document.getElementById('matchGF').value = 0;
+      document.getElementById('matchGA').value = 0;
+      document.getElementById('matchPos').value = '';
+
+      let matchToEdit = null;
+      if (matchId) {
+        matchToEdit = appState.matches.find(m => m.id == matchId);
+        if (matchToEdit) {
+          document.getElementById('matchDate').value = matchToEdit.date || matchToEdit.fecha;
+          document.getElementById('matchOpponent').value = matchToEdit.opponent || matchToEdit.rival;
+          document.getElementById('matchDayNum').value = matchToEdit.jornada || 1;
+          document.getElementById('matchGF').value = matchToEdit.gf !== undefined ? matchToEdit.gf : matchToEdit.golesFavor;
+          document.getElementById('matchGA').value = matchToEdit.ga !== undefined ? matchToEdit.ga : matchToEdit.golesContra;
+          document.getElementById('matchPos').value = matchToEdit.posicion || matchToEdit.posicionLiga || '';
+          document.getElementById('modalMatchTitle').textContent = 'Editar Partido';
+        }
+      } else {
+        document.getElementById('modalMatchTitle').textContent = 'Registrar Partido';
+      }
+
+      const tbody = document.getElementById('matchPlayersInputTable');
+      tbody.innerHTML = '';
+
+      // Only show players belonging to the match season or active season
+      const activeMatchSeason = matchToEdit ? (matchToEdit.season || getSeasonForDate(matchToEdit.date || matchToEdit.fecha)) : appState.activeSeason;
+      const seasonPlayers = getSeasonPlayers(activeMatchSeason);
+
+      seasonPlayers.forEach(p => {
+        let isConv = false, isTit = false, g = 0, a = 0, ta = 0, tr = 0, nota = '';
+
+        if (matchToEdit) {
+          if (matchToEdit.playerStats && matchToEdit.playerStats[p.id]) {
+            const ps = matchToEdit.playerStats[p.id];
+            isConv = ps.convocado;
+            isTit = ps.titular;
+            g = ps.goles || 0;
+            a = ps.asistencias || 0;
+            ta = ps.ta || 0;
+            tr = ps.tr || 0;
+            nota = ps.nota || '';
+          } else {
+            const pIdNum = parseInt(p.id);
+            isConv = (matchToEdit.convocados || []).includes(pIdNum) || (matchToEdit.convocados || []).includes(p.id);
+            isTit = (matchToEdit.onceInicial || []).includes(pIdNum) || (matchToEdit.onceInicial || []).includes(p.id);
+
+            (matchToEdit.goleadores || []).forEach(x => { if (x.jugadorId == p.id) g = x.cantidad; });
+            (matchToEdit.asistentes || []).forEach(x => { if (x.jugadorId == p.id) a = x.cantidad; });
+            (matchToEdit.tarjetas || []).forEach(x => {
+              if (x.jugadorId == p.id) {
+                if (x.tipo === 'Amarilla') ta++;
+                if (x.tipo === 'Roja') tr++;
+              }
+            });
+            (matchToEdit.valoraciones || []).forEach(x => { if (x.jugadorId == p.id) nota = x.valoracion; });
+          }
+        }
+
+        const trEl = document.createElement('tr');
+        trEl.innerHTML = `
+          <td class="py-2 px-3 font-bold text-slate-800">${p.name || p.nombre}</td>
+          <td class="py-2 px-1 text-center">
+            <input type="checkbox" id="m_conv_${p.id}" ${isConv ? 'checked' : ''} onchange="togglePlayerMatchRow(${p.id})" class="rounded text-emerald-600 focus:ring-0">
+          </td>
+          <td class="py-2 px-1 text-center">
+            <input type="checkbox" id="m_tit_${p.id}" ${isTit ? 'checked' : ''} ${!isConv ? 'disabled' : ''} class="rounded text-blue-600 focus:ring-0">
+          </td>
+          <td class="py-2 px-1 text-center">
+            <input type="number" id="m_g_${p.id}" min="0" value="${g}" ${!isConv ? 'disabled' : ''} class="w-12 border border-slate-200 rounded px-1 text-center font-bold">
+          </td>
+          <td class="py-2 px-1 text-center">
+            <input type="number" id="m_a_${p.id}" min="0" value="${a}" ${!isConv ? 'disabled' : ''} class="w-12 border border-slate-200 rounded px-1 text-center font-bold">
+          </td>
+          <td class="py-2 px-1 text-center">
+            <input type="number" id="m_ta_${p.id}" min="0" max="2" value="${ta}" ${!isConv ? 'disabled' : ''} class="w-10 border border-slate-200 rounded px-1 text-center">
+          </td>
+          <td class="py-2 px-1 text-center">
+            <input type="number" id="m_tr_${p.id}" min="0" max="1" value="${tr}" ${!isConv ? 'disabled' : ''} class="w-10 border border-slate-200 rounded px-1 text-center">
+          </td>
+          <td class="py-2 px-2 text-center">
+            <input type="number" id="m_nota_${p.id}" min="1" max="10" step="0.1" value="${nota}" placeholder="1-10" ${!isConv ? 'disabled' : ''} class="w-16 border border-slate-200 rounded px-1 text-center font-bold">
+          </td>
+        `;
+        tbody.appendChild(trEl);
+      });
+
+      openModal('modalMatch');
+    }
+
+    function saveMatch(e) {
+      e.preventDefault();
+      const matchId = document.getElementById('matchId').value;
+      const date = document.getElementById('matchDate').value;
+      const opponent = document.getElementById('matchOpponent').value.trim();
+      const jornada = parseInt(document.getElementById('matchDayNum').value) || 1;
+      const gf = parseInt(document.getElementById('matchGF').value) || 0;
+      const ga = parseInt(document.getElementById('matchGA').value) || 0;
+      const posicion = parseInt(document.getElementById('matchPos').value) || null;
+
+      const playerStats = {};
+      appState.players.forEach(p => {
+        const convEl = document.getElementById(`m_conv_${p.id}`);
+        const conv = convEl ? convEl.checked : false;
+        if (conv) {
+          playerStats[p.id] = {
+            convocado: true,
+            titular: document.getElementById(`m_tit_${p.id}`)?.checked || false,
+            goles: parseInt(document.getElementById(`m_g_${p.id}`)?.value) || 0,
+            asistencias: parseInt(document.getElementById(`m_a_${p.id}`)?.value) || 0,
+            ta: parseInt(document.getElementById(`m_ta_${p.id}`)?.value) || 0,
+            tr: parseInt(document.getElementById(`m_tr_${p.id}`)?.value) || 0,
+            nota: document.getElementById(`m_nota_${p.id}`)?.value ? parseFloat(document.getElementById(`m_nota_${p.id}`).value) : null
+          };
+        }
+      });
+
+      const season = getSeasonForDate(date);
+      if (!appState.seasons.includes(season)) {
+        appState.seasons.push(season);
+      }
+
+      const matchData = {
+        id: matchId ? parseInt(matchId) : Date.now(),
+        date,
+        fecha: date,
+        opponent,
+        rival: opponent,
+        jornada,
+        gf,
+        golesFavor: gf,
+        ga,
+        golesContra: ga,
+        posicion,
+        posicionLiga: posicion,
+        season,
+        playerStats
+      };
+
+      if (matchId) {
+        const idx = appState.matches.findIndex(m => String(m.id) === String(matchId));
+        if (idx !== -1) appState.matches[idx] = matchData;
+      } else {
+        appState.matches.push(matchData);
+      }
+
+      saveData();
+      closeModal('modalMatch');
+      refreshApp();
+    }
+
+    function renderDashTopLists() {
+      const activePlayers = getSeasonPlayers(appState.activeSeason);
+      const playersStats = activePlayers.map(p => ({
+        id: p.id,
+        name: p.name || p.nombre,
+        stats: getPlayerStats(p.id, appState.activeSeason)
+      }));
+
+      const topScorers = [...playersStats].sort((a,b) => b.stats.goles - a.stats.goles).slice(0, 5);
+      const topScorersList = document.getElementById('dashTopScorersList');
+      if (topScorersList) {
+        topScorersList.innerHTML = topScorers.map((p, i) => `
+          <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+            <div class="flex items-center space-x-2.5">
+              <span class="text-xs font-black text-slate-400 w-4 text-center">${i + 1}</span>
+              <span class="text-xs font-bold text-slate-800">${p.name}</span>
+            </div>
+            <span class="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">${p.stats.goles}</span>
+          </div>
+        `).join('');
+      }
+
+      const topAssisters = [...playersStats].sort((a,b) => b.stats.asistencias - a.stats.asistencias).slice(0, 5);
+      const topAssistersList = document.getElementById('dashTopAssistersList');
+      if (topAssistersList) {
+        topAssistersList.innerHTML = topAssisters.map((p, i) => `
+          <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+            <div class="flex items-center space-x-2.5">
+              <span class="text-xs font-black text-slate-400 w-4 text-center">${i + 1}</span>
+              <span class="text-xs font-bold text-slate-800">${p.name}</span>
+            </div>
+            <span class="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">${p.stats.asistencias}</span>
+          </div>
+        `).join('');
+      }
+
+      const topContrib = [...playersStats].sort((a,b) => b.stats.ga - a.stats.ga).slice(0, 5);
+      const topGoalContribList = document.getElementById('dashTopGoalContribList');
+      if (topGoalContribList) {
+        topGoalContribList.innerHTML = topContrib.map((p, i) => `
+          <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+            <div class="flex items-center space-x-2.5">
+              <span class="text-xs font-black text-slate-400 w-4 text-center">${i + 1}</span>
+              <div>
+                <p class="text-xs font-bold text-slate-800">${p.name}</p>
+                <p class="text-[10px] text-slate-400 font-medium">${p.stats.goles}G / ${p.stats.asistencias}A</p>
+              </div>
+            </div>
+            <span class="text-xs font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg">${p.stats.ga} G+A</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    /* ==================== GENERAL REFRESH & UTILS ==================== */
+    function getPlayerStats(playerId, season = appState.activeSeason) {
+      let pj = 0, pt = 0, goles = 0, asistencias = 0, ta = 0, tr = 0, sumRating = 0, ratedCount = 0, tensCount = 0;
+
+      const targetMatches = season === 'ALL' 
+        ? appState.matches 
+        : appState.matches.filter(m => (m.season || getSeasonForDate(m.date || m.fecha)) === season);
+
+      targetMatches.forEach(m => {
+        if (m.playerStats && m.playerStats[playerId]) {
+          const ps = m.playerStats[playerId];
+          if (ps.convocado) {
+            pj++;
+            if (ps.titular) pt++;
+            goles += ps.goles || 0;
+            asistencias += ps.asistencias || 0;
+            ta += ps.ta || 0;
+            tr += ps.tr || 0;
+            if (ps.nota !== null && ps.nota !== undefined && !isNaN(ps.nota)) {
+              sumRating += parseFloat(ps.nota);
+              ratedCount++;
+              if (parseFloat(ps.nota) === 10) tensCount++;
+            }
+          }
+        } else {
+          const pIdNum = parseInt(playerId);
+          const isConv = (m.convocados || []).includes(pIdNum) || (m.convocados || []).includes(playerId);
+          if (isConv) {
+            pj++;
+            const isTit = (m.onceInicial || []).includes(pIdNum) || (m.onceInicial || []).includes(playerId);
+            if (isTit) pt++;
+
+            (m.goleadores || []).forEach(x => { if (String(x.jugadorId) === String(playerId)) goles += x.cantidad; });
+            (m.asistentes || []).forEach(x => { if (String(x.jugadorId) === String(playerId)) asistencias += x.cantidad; });
+            (m.tarjetas || []).forEach(x => {
+              if (String(x.jugadorId) === String(playerId)) {
+                if (x.tipo === 'Amarilla') ta++;
+                if (x.tipo === 'Roja') tr++;
+              }
+            });
+            (m.valoraciones || []).forEach(x => {
+              if (String(x.jugadorId) === String(playerId) && x.valoracion !== null && x.valoracion !== undefined && !isNaN(x.valoracion)) {
+                const n = parseFloat(x.valoracion);
+                if (n > 0) {
+                  sumRating += n;
+                  ratedCount++;
+                  if (n === 10) tensCount++;
+                }
+              }
+            });
+          }
+        }
+      });
+
+      const avgRating = ratedCount > 0 ? (sumRating / ratedCount).toFixed(1) : '-';
+      const numAvgRating = ratedCount > 0 ? (sumRating / ratedCount) : 0;
+
+      return { pj, pt, goles, asistencias, ga: goles + asistencias, ta, tr, avgRating, numAvgRating, tensCount };
+    }
+
+    function getSeasonForDate(dateStr) {
+      if (!dateStr) return appState.seasons[0];
+      const year = new Date(dateStr).getFullYear();
+      const month = new Date(dateStr).getMonth() + 1;
+      if (month >= 8) return `${year}/${year + 1}`;
+      return `${year - 1}/${year}`;
+    }
+
+    function getActiveMatches() {
+      if (appState.activeSeason === 'ALL') return appState.matches;
+      return appState.matches.filter(m => (m.season || getSeasonForDate(m.date || m.fecha)) === appState.activeSeason);
+    }
+
+    function refreshApp() {
+      document.getElementById('appTeamName').textContent = appState.teamName;
+      document.getElementById('currentSeasonLabel').textContent = appState.activeSeason === 'ALL' ? 'Histórico completo' : appState.activeSeason;
+
+      const inlineLabels = document.querySelectorAll('.seasonLabelInline');
+      inlineLabels.forEach(el => el.textContent = appState.activeSeason === 'ALL' ? 'Histórico completo' : appState.activeSeason);
+
+      renderSeasonDropdown();
+      renderDashboard();
+      renderPlayersTable();
+      renderMatchesList();
+      renderPerformanceTab();
+      renderHistoryTab();
+    }
+
+    function renderDashboard() {
+      const activePlayers = getSeasonPlayers(appState.activeSeason);
+      document.getElementById('dashTotalPlayers').textContent = activePlayers.length;
+
+      const activeMatches = getActiveMatches();
+      let gf = 0, ga = 0, wins = 0, draws = 0, losses = 0;
+
+      activeMatches.forEach(m => {
+        const matchGF = parseInt(m.gf !== undefined ? m.gf : m.golesFavor) || 0;
+        const matchGA = parseInt(m.ga !== undefined ? m.ga : m.golesContra) || 0;
+        gf += matchGF;
+        ga += matchGA;
+        if (matchGF > matchGA) wins++;
+        else if (matchGF === matchGA) draws++;
+        else losses++;
+      });
+
+      document.getElementById('dashGoalsFor').textContent = gf;
+      document.getElementById('dashGoalsAgainst').textContent = ga;
+      document.getElementById('dashWins').textContent = wins;
+      document.getElementById('dashDraws').textContent = draws;
+      document.getElementById('dashLosses').textContent = losses;
+      document.getElementById('dashSeasonTitle').textContent = appState.activeSeason;
+
+      // Last Match Box & MVP Calculation
+      const lastMatchBox = document.getElementById('dashLastMatchBox');
+      const dashMvpName = document.getElementById('dashLastMatchMvpName');
+      const dashMvpScore = document.getElementById('dashLastMatchMvpScore');
+
+      if (activeMatches.length > 0) {
+        const sorted = [...activeMatches].sort((a,b) => new Date(b.date || b.fecha) - new Date(a.date || a.fecha));
+        const last = sorted[0];
+        const lGF = last.gf !== undefined ? last.gf : last.golesFavor;
+        const lGA = last.ga !== undefined ? last.ga : last.golesContra;
+
+        lastMatchBox.innerHTML = `
+          <p class="text-[10px] text-slate-400 font-bold mb-1">${last.date || last.fecha} · Jornada ${last.jornada || '-'}</p>
+          <div class="flex items-center justify-between font-extrabold text-xs">
+            <span>${appState.teamName} ${lGF} - ${lGA} ${last.opponent || last.rival}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] ${lGF > lGA ? 'bg-emerald-100 text-emerald-800' : lGF === lGA ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'}">
+              ${lGF > lGA ? 'Victoria' : lGF === lGA ? 'Empate' : 'Derrota'}
+            </span>
+          </div>
+        `;
+
+        // Calculate Last Match MVP
+        let bestPlayerName = '-';
+        let bestScore = -1;
+
+        if (last.playerStats) {
+          Object.keys(last.playerStats).forEach(pId => {
+            const ps = last.playerStats[pId];
+            if (ps.convocado && ps.nota !== null && ps.nota !== undefined && parseFloat(ps.nota) > bestScore) {
+              bestScore = parseFloat(ps.nota);
+              const foundP = appState.players.find(x => String(x.id) === String(pId));
+              if (foundP) bestPlayerName = foundP.name || foundP.nombre;
+            }
+          });
+        } else if (last.valoraciones && last.valoraciones.length > 0) {
+          last.valoraciones.forEach(v => {
+            if (v.valoracion !== null && v.valoracion !== undefined && parseFloat(v.valoracion) > bestScore) {
+              bestScore = parseFloat(v.valoracion);
+              const foundP = appState.players.find(x => String(x.id) === String(v.jugadorId));
+              if (foundP) bestPlayerName = foundP.name || foundP.nombre;
+            }
+          });
+        }
+
+        if (bestScore >= 0) {
+          dashMvpName.textContent = bestPlayerName;
+          dashMvpScore.textContent = `Nota: ${bestScore.toFixed(1)}`;
+        } else {
+          dashMvpName.textContent = '-';
+          dashMvpScore.textContent = 'Nota: -';
+        }
+
+        document.getElementById('dashCurrentPosText').textContent = `${last.posicion || last.posicionLiga || '-'}º Posición`;
+      } else {
+        lastMatchBox.innerHTML = `<p class="text-xs text-slate-400 italic">No hay partidos jugados esta temporada.</p>`;
+        dashMvpName.textContent = '-';
+        dashMvpScore.textContent = 'Nota: -';
+        document.getElementById('dashCurrentPosText').textContent = `-º Posición`;
+      }
+
+      document.getElementById('dashLeagueTotalTeamsLabel').textContent = appState.totalLeagueTeams || 20;
+      document.getElementById('perfLeagueTotalTeamsLabel').textContent = appState.totalLeagueTeams || 20;
+
+      renderDashMiniPositionChart(activeMatches);
+      renderDashTopLists();
+    }
+
+    function renderDashMiniPositionChart(matches) {
+      const ctx = document.getElementById('miniPositionChart')?.getContext('2d');
+      if (!ctx) return;
+      if (charts.miniPosition) charts.miniPosition.destroy();
+
+      const sorted = [...matches].sort((a,b) => new Date(a.date || a.fecha) - new Date(b.date || b.fecha));
+      const labels = sorted.map((m, i) => `J${m.jornada || i + 1}`);
+      const data = sorted.map(m => m.posicion || m.posicionLiga || null);
+
+      const maxTeams = appState.totalLeagueTeams || 20;
+
+      charts.miniPosition = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels.length ? labels : ['Sin partidos'],
+          datasets: [{
+            label: 'Posición',
+            data: data.length ? data : [1],
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            borderWidth: 3,
+            tension: 0.3,
+            fill: true,
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              reverse: true,
+              min: 1,
+              max: maxTeams,
+              ticks: { stepSize: 2 }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function renderSeasonDropdown() {
+      const menuList = document.getElementById('seasonsMenuList');
+      if (!menuList) return;
+      menuList.innerHTML = '';
+
+      appState.seasons.forEach(s => {
+        const btn = document.createElement('button');
+        btn.onclick = () => selectSeason(s);
+        btn.className = 'w-full text-left px-4 py-2 text-xs font-semibold hover:bg-slate-50 flex items-center justify-between text-slate-700';
+        btn.innerHTML = `
+          <span>Temporada ${s}</span>
+          ${appState.activeSeason === s ? '<i class="fa-solid fa-check text-emerald-600"></i>' : ''}
+        `;
+        menuList.appendChild(btn);
+      });
+    }
+
+    function toggleSeasonDropdown() {
+      document.getElementById('seasonDropdownMenu').classList.toggle('hidden');
+    }
+
+    function selectSeason(s) {
+      appState.activeSeason = s;
+      saveData();
+      document.getElementById('seasonDropdownMenu').classList.add('hidden');
+      refreshApp();
+    }
+
+    function createNewSeason() {
+      const last = appState.seasons[appState.seasons.length - 1] || '2025/2026';
+      const parts = last.split('/');
+      let newSeason = '2026/2027';
+      if (parts.length === 2) {
+        newSeason = `${parseInt(parts[0]) + 1}/${parseInt(parts[1]) + 1}`;
+      }
+      if (!appState.seasons.includes(newSeason)) {
+        appState.seasons.push(newSeason);
+      }
+      appState.activeSeason = newSeason;
+      saveData();
+      document.getElementById('seasonDropdownMenu').classList.add('hidden');
+      refreshApp();
+      showAlert("Nueva Temporada", `Se ha activado la temporada ${newSeason}.`);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active', 'border-emerald-600', 'text-emerald-600');
+        b.classList.add('border-transparent', 'text-slate-500');
+      });
+
+      const targetBtn = document.getElementById(`tab-${tabId}`);
+      if (targetBtn) {
+        targetBtn.classList.add('active', 'border-emerald-600', 'text-emerald-600');
+        targetBtn.classList.remove('border-transparent', 'text-slate-500');
+      }
+
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+      const view = document.getElementById(`view-${tabId}`);
+      if (view) view.classList.remove('hidden');
+
+      if (tabId === 'performance') renderPerformanceTab();
+      if (tabId === 'history') renderHistoryTab();
+    }
+
+    function openLeagueConfigModal() {
+      document.getElementById('leagueTotalTeamsInput').value = appState.totalLeagueTeams || 20;
+      openModal('modalLeagueConfig');
+    }
+
+    function saveLeagueConfig(e) {
+      e.preventDefault();
+      const val = parseInt(document.getElementById('leagueTotalTeamsInput').value);
+      if (val >= 2) {
+        appState.totalLeagueTeams = val;
+        saveData();
+        closeModal('modalLeagueConfig');
+        refreshApp();
+      }
+    }
+
+    function editTeamName() {
+      const newName = prompt("Nuevo nombre para el equipo:", appState.teamName);
+      if (newName && newName.trim()) {
+        appState.teamName = newName.trim();
+        saveData();
+        refreshApp();
+      }
+    }
+
+    function togglePlayerMatchRow(playerId) {
+      const conv = document.getElementById(`m_conv_${playerId}`).checked;
+      document.getElementById(`m_tit_${playerId}`).disabled = !conv;
+      document.getElementById(`m_g_${playerId}`).disabled = !conv;
+      document.getElementById(`m_a_${playerId}`).disabled = !conv;
+      document.getElementById(`m_ta_${playerId}`).disabled = !conv;
+      document.getElementById(`m_tr_${playerId}`).disabled = !conv;
+      document.getElementById(`m_nota_${playerId}`).disabled = !conv;
+
+      if (!conv) {
+        document.getElementById(`m_tit_${playerId}`).checked = false;
+        document.getElementById(`m_g_${playerId}`).value = 0;
+        document.getElementById(`m_a_${playerId}`).value = 0;
+        document.getElementById(`m_ta_${playerId}`).value = 0;
+        document.getElementById(`m_tr_${playerId}`).value = 0;
+        document.getElementById(`m_nota_${playerId}`).value = '';
+      }
+    }
+
+    /* ==================== PERFORMANCE TAB ==================== */
+    function renderPerformanceTab() {
+      const activePlayers = getSeasonPlayers(appState.activeSeason);
+      const playersStats = activePlayers.map(p => ({
+        id: p.id,
+        name: p.name || p.nombre,
+        stats: getPlayerStats(p.id, appState.activeSeason)
+      }));
+
+      // Top Leaders Cards
+      const pichichi = [...playersStats].sort((a,b) => b.stats.goles - a.stats.goles).slice(0, 4);
+      document.getElementById('perfPichichiList').innerHTML = pichichi.map((p, i) => `
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-600 font-semibold">${i+1}. ${p.name}</span>
+          <span class="font-black text-emerald-600">${p.stats.goles}</span>
+        </div>
+      `).join('') || '<p class="text-xs text-slate-400 italic">Sin datos</p>';
+
+      const assisters = [...playersStats].sort((a,b) => b.stats.asistencias - a.stats.asistencias).slice(0, 4);
+      document.getElementById('perfAssisterList').innerHTML = assisters.map((p, i) => `
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-600 font-semibold">${i+1}. ${p.name}</span>
+          <span class="font-black text-blue-600">${p.stats.asistencias}</span>
+        </div>
+      `).join('') || '<p class="text-xs text-slate-400 italic">Sin datos</p>';
+
+      const ratings = [...playersStats].filter(p => p.stats.numAvgRating > 0).sort((a,b) => b.stats.numAvgRating - a.stats.numAvgRating).slice(0, 5);
+      document.getElementById('perfRatingList').innerHTML = ratings.map((p, i) => `
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-600 font-semibold">${i+1}. ${p.name}</span>
+          <span class="font-black text-amber-600">${p.stats.avgRating}</span>
+        </div>
+      `).join('') || '<p class="text-xs text-slate-400 italic">Sin datos</p>';
+
+      const tens = [...playersStats].filter(p => p.stats.tensCount > 0).sort((a,b) => b.stats.tensCount - a.stats.tensCount).slice(0, 4);
+      document.getElementById('perfTensList').innerHTML = tens.map((p, i) => `
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-600 font-semibold">${i+1}. ${p.name}</span>
+          <span class="font-black text-amber-500">${p.stats.tensCount}</span>
+        </div>
+      `).join('') || '<p class="text-xs text-slate-400 italic">Sin datos</p>';
+
+      renderPerformanceCharts(playersStats);
+    }
+
+    function renderPerformanceCharts(playersStats) {
+      // 1. Goals Per Player
+      const ctx1 = document.getElementById('chartGoalsPerPlayer')?.getContext('2d');
+      if (ctx1) {
+        if (charts.goalsPlayer) charts.goalsPlayer.destroy();
+        const scorers = playersStats.filter(p => p.stats.goles > 0).sort((a,b) => b.stats.goles - a.stats.goles);
+        charts.goalsPlayer = new Chart(ctx1, {
+          type: 'bar',
+          data: {
+            labels: scorers.map(p => p.name),
+            datasets: [{
+              label: 'Goles',
+              data: scorers.map(p => p.stats.goles),
+              backgroundColor: '#10b981',
+              borderRadius: 6
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+      }
+
+      // 2. Goal Share Pie
+      const ctx2 = document.getElementById('chartGoalShare')?.getContext('2d');
+      if (ctx2) {
+        if (charts.goalShare) charts.goalShare.destroy();
+        const scorers = playersStats.filter(p => p.stats.goles > 0);
+        charts.goalShare = new Chart(ctx2, {
+          type: 'doughnut',
+          data: {
+            labels: scorers.map(p => p.name),
+            datasets: [{
+              data: scorers.map(p => p.stats.goles),
+              backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b']
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+      }
+
+      // 3. Goals Evolution (GF vs GA)
+      const ctx3 = document.getElementById('chartGoalsEvolution')?.getContext('2d');
+      if (ctx3) {
+        if (charts.goalsEvol) charts.goalsEvol.destroy();
+        const matches = getActiveMatches().sort((a,b) => new Date(a.date || a.fecha) - new Date(b.date || b.fecha));
+        let cumGF = 0, cumGA = 0;
+        const gfData = [], gaData = [], labels = [];
+        matches.forEach((m, i) => {
+          cumGF += parseInt(m.gf !== undefined ? m.gf : m.golesFavor) || 0;
+          cumGA += parseInt(m.ga !== undefined ? m.ga : m.golesContra) || 0;
+          labels.push(`J${m.jornada || i+1}`);
+          gfData.push(cumGF);
+          gaData.push(cumGA);
+        });
+
+        charts.goalsEvol = new Chart(ctx3, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Goles Favor', data: gfData, borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.2 },
+              { label: 'Goles Contra', data: gaData, borderColor: '#ef4444', backgroundColor: '#ef4444', tension: 0.2 }
+            ]
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+      }
+
+      // 4. League Position Evolution
+      const ctx4 = document.getElementById('chartLeaguePosition')?.getContext('2d');
+      if (ctx4) {
+        if (charts.leaguePos) charts.leaguePos.destroy();
+        const matches = getActiveMatches().sort((a,b) => new Date(a.date || a.fecha) - new Date(b.date || b.fecha));
+        const labels = matches.map((m, i) => `J${m.jornada || i+1}`);
+        const posData = matches.map(m => m.posicion || m.posicionLiga || null);
+
+        charts.leaguePos = new Chart(ctx4, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Posición',
+              data: posData,
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              fill: true,
+              tension: 0.2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                reverse: true,
+                min: 1,
+                max: appState.totalLeagueTeams || 20
+              }
+            }
+          }
+        });
+      }
+    }
+
+    /* ==================== CLUB HISTORY TAB ==================== */
+    function renderHistoryTab() {
+      document.getElementById('histTotalSeasons').textContent = appState.seasons.length;
+      document.getElementById('histTotalMatches').textContent = appState.matches.length;
+
+      let totalGF = 0, totalWins = 0;
+      appState.matches.forEach(m => {
+        const gf = parseInt(m.gf !== undefined ? m.gf : m.golesFavor) || 0;
+        const ga = parseInt(m.ga !== undefined ? m.ga : m.golesContra) || 0;
+        totalGF += gf;
+        if (gf > ga) totalWins++;
+      });
+
+      document.getElementById('histTotalGF').textContent = totalGF;
+      const winRate = appState.matches.length > 0 ? Math.round((totalWins / appState.matches.length) * 100) : 0;
+      document.getElementById('histWinRate').textContent = `${winRate}%`;
+
+      // Historical Scorers Table
+      const allPlayersStats = appState.players.map(p => ({
+        name: p.name || p.nombre,
+        stats: getPlayerStats(p.id, 'ALL')
+      })).filter(p => p.stats.pj > 0).sort((a,b) => b.stats.goles - a.stats.goles);
+
+      const tbody = document.getElementById('histScorersTableBody');
+      tbody.innerHTML = allPlayersStats.map((p, i) => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-3 px-3 text-center font-bold text-slate-400">${i+1}</td>
+          <td class="py-3 px-4 font-extrabold text-slate-800">${p.name}</td>
+          <td class="py-3 px-3 text-center font-bold text-slate-600">${p.stats.pj}</td>
+          <td class="py-3 px-3 text-center font-black text-emerald-600">${p.stats.goles}</td>
+          <td class="py-3 px-3 text-center font-bold text-blue-600">${p.stats.asistencias}</td>
+          <td class="py-3 px-3 text-center font-semibold text-slate-500">${(p.stats.goles / p.stats.pj).toFixed(2)}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="6" class="py-6 text-center text-slate-400 italic">Sin datos históricos.</td></tr>';
+
+      // Seasons Cards Grid
+      const seasonsGrid = document.getElementById('histSeasonsCardsGrid');
+      seasonsGrid.innerHTML = appState.seasons.map(s => {
+        const seasonMatches = appState.matches.filter(m => (m.season || getSeasonForDate(m.date || m.fecha)) === s);
+        let sGF = 0, sGA = 0, sWins = 0, sDraws = 0, sLosses = 0;
+        seasonMatches.forEach(m => {
+          const gf = parseInt(m.gf !== undefined ? m.gf : m.golesFavor) || 0;
+          const ga = parseInt(m.ga !== undefined ? m.ga : m.golesContra) || 0;
+          sGF += gf;
+          sGA += ga;
+          if (gf > ga) sWins++;
+          else if (gf === ga) sDraws++;
+          else sLosses++;
+        });
+
+        return `
+          <div class="card-clean p-4 border border-slate-200">
+            <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+              <h4 class="font-extrabold text-sm text-slate-900">Temporada ${s}</h4>
+              <span class="text-xs font-bold text-slate-400">${seasonMatches.length} partidos</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center text-xs mb-3">
+              <div class="bg-emerald-50 text-emerald-700 font-bold p-1.5 rounded-lg">${sWins}V</div>
+              <div class="bg-amber-50 text-amber-700 font-bold p-1.5 rounded-lg">${sDraws}E</div>
+              <div class="bg-rose-50 text-rose-700 font-bold p-1.5 rounded-lg">${sLosses}D</div>
+            </div>
+            <div class="flex items-center justify-between text-xs text-slate-500 font-medium">
+              <span>Goles: <strong class="text-emerald-600">${sGF}</strong> a favor / <strong class="text-rose-600">${sGA}</strong> en contra</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* ==================== EXPORT & IMPORT ==================== */
+    function exportDataJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `WEST_JAMON_BACKUP_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importDataJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported.players || imported.matches) {
+            
+            // Deduplicate players by name while merging IDs and seasons
+            const playerMap = new Map();
+            (appState.players || []).concat(imported.players || []).forEach(p => {
+              const nameKey = (p.name || p.nombre || '').trim().toLowerCase();
+              if (!nameKey) return;
+
+              if (playerMap.has(nameKey)) {
+                const existing = playerMap.get(nameKey);
+                const combinedSeasons = new Set([...(existing.seasons || []), ...(p.seasons || [])]);
+                existing.seasons = Array.from(combinedSeasons);
+              } else {
+                playerMap.set(nameKey, {
+                  id: p.id || Date.now(),
+                  name: p.name || p.nombre,
+                  nombre: p.name || p.nombre,
+                  seasons: p.seasons || [...appState.seasons]
+                });
+              }
+            });
+
+            appState.players = Array.from(playerMap.values());
+            appState.matches = imported.matches || appState.matches;
+
+            // Extract seasons from matches
+            const detectedSeasons = new Set(appState.seasons);
+            appState.matches.forEach(m => {
+              const s = m.season || getSeasonForDate(m.date || m.fecha);
+              if (s) detectedSeasons.add(s);
+            });
+            appState.seasons = Array.from(detectedSeasons).sort();
+            if (appState.seasons.length > 0) appState.activeSeason = appState.seasons[0];
+
+            saveData();
+            refreshApp();
+            showAlert("Importación Exitosa", "Se han cargado correctamente todos los datos del archivo backup sin duplicar jugadores.");
+          }
+        } catch (err) {
+          showAlert("Error", "El archivo cargado no tiene un formato JSON válido.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    /* Demo Data Loader */
+    function loadDemoData() {
+      showConfirm('Cargar datos demo', 'Esto REEMPLAZARÁ todos los datos guardados en la nube por datos de ejemplo. ¿Continuar?', () => _loadDemo(true));
+    }
+
+    function _loadDemo(showNotification = true) {
+      appState = {
+        teamName: 'West Jamón FC',
+        totalLeagueTeams: 20,
+        activeSeason: '2025/2026',
+        seasons: ['2025/2026', '2026/2027'],
+        players: [
+          { id: 101, name: 'Jorge Caballero', seasons: ['2025/2026', '2026/2027'] },
+          { id: 102, name: 'Daniel de Miguel', seasons: ['2025/2026', '2026/2027'] },
+          { id: 103, name: 'Álvaro Cid', seasons: ['2025/2026', '2026/2027'] },
+          { id: 104, name: 'Cege', seasons: ['2025/2026'] },
+          { id: 105, name: 'Santiago Estalote', seasons: ['2025/2026', '2026/2027'] }
+        ],
+        matches: [
+          {
+            id: 201,
+            date: '2026-05-17',
+            opponent: 'Zenit de Hasbulla',
+            jornada: 1,
+            gf: 3,
+            ga: 1,
+            posicion: 4,
+            season: '2025/2026',
+            playerStats: {
+              101: { convocado: true, titular: true, goles: 2, asistencias: 0, ta: 0, tr: 0, nota: 8.5 },
+              102: { convocado: true, titular: true, goles: 1, asistencias: 2, ta: 0, tr: 0, nota: 9.0 },
+              103: { convocado: true, titular: true, goles: 0, asistencias: 1, ta: 1, tr: 0, nota: 7.0 }
+            }
+          }
+        ]
+      };
+      saveData();
+      refreshApp();
+      if (showNotification) showAlert("Datos Demo", "Se han cargado los datos de demostración.");
+    }
+  </script>
+</body>
+</html>
